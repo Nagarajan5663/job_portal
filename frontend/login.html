@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Login — JobPortal</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="navbar"></div>
+
+<div class="auth-wrapper">
+  <div class="card auth-card">
+    <h2>Welcome back</h2>
+    <p class="text-muted mb-16">Login to your JobPortal account.</p>
+
+    <div id="error-banner" class="error-banner"></div>
+
+    <form id="login-form" novalidate>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" required />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" required />
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="submit-btn">Login</button>
+    </form>
+
+    <div class="auth-switch">Don't have an account? <a href="/register.html">Register here</a></div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  renderNavbar();
+
+  document.getElementById("login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    showBanner("error-banner", "");
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    if (!email || !password) {
+      showBanner("error-banner", "Please fill in both fields.");
+      return;
+    }
+
+    const btn = document.getElementById("submit-btn");
+    btn.disabled = true;
+    btn.textContent = "Logging in...";
+
+    try {
+      const data = await api.login({ email, password });
+      Auth.saveSession(data);
+      if (data.role === "jobseeker") window.location.href = "/jobseeker/jobs.html";
+      else if (data.role === "recruiter") window.location.href = "/recruiter/dashboard.html";
+      else window.location.href = "/admin/dashboard.html";
+    } catch (err) {
+      showBanner("error-banner", err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Login";
+    }
+  });
+</script>
+</body>
+</html>

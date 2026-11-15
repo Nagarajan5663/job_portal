@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>JobPortal — Find Your Next Opportunity</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="navbar"></div>
+
+<section class="page">
+  <div class="container text-center" style="padding-top:40px;">
+    <h1 style="font-size:2.4rem;">Find your next job, effortlessly.</h1>
+    <p class="text-muted" style="font-size:1.05rem; max-width:560px; margin:10px auto 26px;">
+      A full-stack Job Portal connecting Job Seekers, Recruiters and Admins on one platform.
+    </p>
+    <div id="cta-buttons">
+      <a href="/register.html" class="btn btn-primary">Get Started</a>
+      <a href="/login.html" class="btn btn-outline">Login</a>
+    </div>
+  </div>
+
+  <div class="container grid grid-3 mt-24" style="margin-top:60px;">
+    <div class="card">
+      <h3>🔍 Job Seekers</h3>
+      <p class="text-muted">Build your profile, search &amp; filter jobs, apply in one click, and track your application status.</p>
+    </div>
+    <div class="card">
+      <h3>🏢 Recruiters</h3>
+      <p class="text-muted">Create a company profile, post and manage job listings, and review applicants efficiently.</p>
+    </div>
+    <div class="card">
+      <h3>🛠️ Admins</h3>
+      <p class="text-muted">Manage users, recruiters, jobs and applications from a centralized dashboard with live statistics.</p>
+    </div>
+  </div>
+</section>
+
+<div class="footer">© 2026 JobPortal — Built with FastAPI, MySQL &amp; vanilla JS.</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  renderNavbar();
+  if (Auth.isLoggedIn()) {
+    document.getElementById("cta-buttons").innerHTML =
+      Auth.getRole() === "jobseeker" ? '<a href="/jobseeker/jobs.html" class="btn btn-primary">Browse Jobs</a>' :
+      Auth.getRole() === "recruiter" ? '<a href="/recruiter/dashboard.html" class="btn btn-primary">Go to Dashboard</a>' :
+      '<a href="/admin/dashboard.html" class="btn btn-primary">Go to Dashboard</a>';
+  }
+</script>
+</body>
+</html>

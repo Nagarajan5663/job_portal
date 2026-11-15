@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Company Profile — Recruiter — JobPortal</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="navbar"></div>
+
+<section class="page">
+  <div class="container" style="max-width:700px;">
+    <div class="page-header">
+      <h1>Company Profile</h1>
+      <p>This information is shown to job seekers alongside your listings.</p>
+    </div>
+
+    <div class="card">
+      <div id="error-banner" class="error-banner"></div>
+      <div id="success-banner" class="success-banner"></div>
+
+      <form id="company-form">
+        <div class="form-group">
+          <label>Company Name *</label>
+          <input id="company_name" required minlength="2" />
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="description" placeholder="What does your company do?"></textarea>
+        </div>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label>Website</label>
+            <input id="website" placeholder="https://example.com" />
+          </div>
+          <div class="form-group">
+            <label>Location</label>
+            <input id="location" placeholder="City, Country" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Logo URL</label>
+          <input id="logo_url" placeholder="https://... (link to your logo image)" />
+        </div>
+        <button type="submit" class="btn btn-primary" id="save-btn">Save Company Profile</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  Auth.requireRole("recruiter");
+  renderNavbar("company");
+
+  async function loadCompany() {
+    try {
+      const c = await api.getMyCompany();
+      document.getElementById("company_name").value = c.company_name || "";
+      document.getElementById("description").value = c.description || "";
+      document.getElementById("website").value = c.website || "";
+      document.getElementById("location").value = c.location || "";
+      document.getElementById("logo_url").value = c.logo_url || "";
+    } catch (err) {
+      showBanner("error-banner", err.message);
+    }
+  }
+
+  document.getElementById("company-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    showBanner("error-banner", "");
+    showBanner("success-banner", "");
+    const btn = document.getElementById("save-btn");
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+    try {
+      await api.updateMyCompany({
+        company_name: document.getElementById("company_name").value.trim(),
+        description: document.getElementById("description").value.trim(),
+        website: document.getElementById("website").value.trim(),
+        location: document.getElementById("location").value.trim(),
+        logo_url: document.getElementById("logo_url").value.trim(),
+      });
+      showBanner("success-banner", "Company profile saved.", "success");
+    } catch (err) {
+      showBanner("error-banner", err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Save Company Profile";
+    }
+  });
+
+  loadCompany();
+</script>
+</body>
+</html>

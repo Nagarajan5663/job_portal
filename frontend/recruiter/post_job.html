@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Post a Job — Recruiter — JobPortal</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="navbar"></div>
+
+<section class="page">
+  <div class="container" style="max-width:700px;">
+    <div class="page-header">
+      <h1 id="page-title">Post a New Job</h1>
+      <p>Fill in the details below. Fields marked * are required.</p>
+    </div>
+
+    <div class="card">
+      <div id="error-banner" class="error-banner"></div>
+      <div id="success-banner" class="success-banner"></div>
+
+      <form id="job-form">
+        <div class="form-group">
+          <label>Job Title *</label>
+          <input id="title" required minlength="3" />
+        </div>
+        <div class="form-group">
+          <label>Description *</label>
+          <textarea id="description" required minlength="10" placeholder="Describe the role and responsibilities"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Requirements</label>
+          <textarea id="requirements" placeholder="Skills, qualifications, years of experience..."></textarea>
+        </div>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label>Location</label>
+            <input id="location" placeholder="e.g. Chennai / Remote" />
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <input id="category" placeholder="e.g. Software Engineering" />
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label>Job Type</label>
+            <select id="job_type">
+              <option>Full-time</option>
+              <option>Part-time</option>
+              <option>Internship</option>
+              <option>Contract</option>
+              <option>Remote</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="status">
+              <option value="open">Open</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label>Minimum Salary (₹/yr)</label>
+            <input id="salary_min" type="number" min="0" value="0" />
+          </div>
+          <div class="form-group">
+            <label>Maximum Salary (₹/yr)</label>
+            <input id="salary_max" type="number" min="0" value="0" />
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="save-btn">Save Job</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  Auth.requireRole("recruiter");
+  renderNavbar("post");
+
+  const params = new URLSearchParams(window.location.search);
+  const jobId = params.get("id");
+
+  if (jobId) {
+    document.getElementById("page-title").textContent = "Edit Job";
+    loadExistingJob();
+  }
+
+  async function loadExistingJob() {
+    try {
+      const jobs = await api.myPostedJobs();
+      const job = jobs.find((j) => j.id === Number(jobId));
+      if (!job) throw new Error("Job not found");
+      document.getElementById("title").value = job.title;
+      document.getElementById("description").value = job.description;
+      document.getElementById("requirements").value = job.requirements || "";
+      document.getElementById("location").value = job.location || "";
+      document.getElementById("category").value = job.category || "";
+      document.getElementById("job_type").value = job.job_type;
+      document.getElementById("status").value = job.status;
+      document.getElementById("salary_min").value = job.salary_min;
+      document.getElementById("salary_max").value = job.salary_max;
+    } catch (err) {
+      showBanner("error-banner", err.message);
+    }
+  }
+
+  document.getElementById("job-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    showBanner("error-banner", "");
+    showBanner("success-banner", "");
+
+    const salaryMin = Number(document.getElementById("salary_min").value || 0);
+    const salaryMax = Number(document.getElementById("salary_max").value || 0);
+    if (salaryMax && salaryMax < salaryMin) {
+      showBanner("error-banner", "Maximum salary must be greater than or equal to minimum salary.");
+      return;
+    }
+
+    const payload = {
+      title: document.getElementById("title").value.trim(),
+      description: document.getElementById("description").value.trim(),
+      requirements: document.getElementById("requirements").value.trim(),
+      location: document.getElementById("location").value.trim(),
+      category: document.getElementById("category").value.trim(),
+      job_type: document.getElementById("job_type").value,
+      salary_min: salaryMin,
+      salary_max: salaryMax,
+    };
+
+    const btn = document.getElementById("save-btn");
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+
+    try {
+      if (jobId) {
+        payload.status = document.getElementById("status").value;
+        await api.updateJob(jobId, payload);
+      } else {
+        await api.createJob(payload);
+      }
+      showBanner("success-banner", "Job saved successfully. Redirecting...", "success");
+      setTimeout(() => (window.location.href = "/recruiter/dashboard.html"), 1000);
+    } catch (err) {
+      showBanner("error-banner", err.message);
+      btn.disabled = false;
+      btn.textContent = "Save Job";
+    }
+  });
+</script>
+</body>
+</html>

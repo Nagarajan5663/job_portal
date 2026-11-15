@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Browse Jobs — JobPortal</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="navbar"></div>
+
+<section class="page">
+  <div class="container">
+    <div class="page-header">
+      <h1>Browse Jobs</h1>
+      <p>Search and filter open roles that match your skills.</p>
+    </div>
+
+    <div class="filters-bar">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Keyword</label>
+        <input id="f-keyword" placeholder="Job title or description" />
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Location</label>
+        <input id="f-location" placeholder="e.g. Chennai" />
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Job Type</label>
+        <select id="f-type">
+          <option value="">Any</option>
+          <option>Full-time</option>
+          <option>Part-time</option>
+          <option>Internship</option>
+          <option>Contract</option>
+          <option>Remote</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Min Salary</label>
+        <input id="f-salary" type="number" min="0" placeholder="e.g. 30000" />
+      </div>
+      <button class="btn btn-primary" onclick="loadJobs()">Search</button>
+    </div>
+
+    <div id="error-banner" class="error-banner"></div>
+    <div id="jobs-grid" class="grid grid-3"></div>
+    <div id="empty-state" class="empty-state hidden">No jobs match your search. Try different filters.</div>
+  </div>
+</section>
+
+<!-- Job Details / Apply Modal -->
+<div class="modal-overlay" id="job-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  Auth.requireRole("jobseeker");
+  renderNavbar("jobs");
+
+  let myApplications = [];
+
+  async function loadJobs() {
+    showBanner("error-banner", "");
+    const grid = document.getElementById("jobs-grid");
+    grid.innerHTML = '<p class="text-muted">Loading jobs...</p>';
+    try {
+      const [jobs, apps] = await Promise.all([
+        api.listJobs({
+          keyword: document.getElementById("f-keyword").value.trim(),
+          location: document.getElementById("f-location").value.trim(),
+          job_type: document.getElementById("f-type").value,
+          min_salary: document.getElementById("f-salary").value,
+        }),
+        api.myApplications(),
+      ]);
+      myApplications = apps;
+      renderJobs(jobs);
+    } catch (err) {
+      grid.innerHTML = "";
+      showBanner("error-banner", err.message);
+    }
+  }
+
+  function renderJobs(jobs) {
+    const grid = document.getElementById("jobs-grid");
+    const empty = document.getElementById("empty-state");
+    grid.innerHTML = "";
+    empty.classList.toggle("hidden", jobs.length !== 0);
+
+    jobs.forEach((job) => {
+      const applied = myApplications.some((a) => a.job_id === job.id);
+      const card = document.createElement("div");
+      card.className = "card job-card";
+      card.innerHTML = `
+        <h3>${escapeHtml(job.title)}</h3>
+        <div class="text-muted" style="font-size:0.88rem;">${escapeHtml(job.company_name || "Company")}</div>
+        <div class="job-meta">
+          <span>📍 ${escapeHtml(job.location || "Remote")}</span>
+          <span>🕓 ${escapeHtml(job.job_type)}</span>
+          ${job.category ? `<span>🏷️ ${escapeHtml(job.category)}</span>` : ""}
+        </div>
+        <p class="job-desc">${escapeHtml(job.description)}</p>
+        <div class="job-footer">
+          <span class="salary">${job.salary_min || job.salary_max ? `₹${job.salary_min} - ₹${job.salary_max}` : "Not disclosed"}</span>
+          <button class="btn btn-sm ${applied ? "btn-outline" : "btn-primary"}" onclick="openJob(${job.id})" ${applied ? "disabled" : ""}>
+            ${applied ? "Applied" : "View & Apply"}
+          </button>
+        </div>`;
+      grid.appendChild(card);
+    });
+  }
+
+  async function openJob(jobId) {
+    const modal = document.getElementById("job-modal");
+    const body = document.getElementById("modal-body");
+    body.innerHTML = "<p>Loading...</p>";
+    modal.classList.add("open");
+    try {
+      const job = await api.getJob(jobId);
+      const applied = myApplications.some((a) => a.job_id === job.id);
+      body.innerHTML = `
+        <h2>${escapeHtml(job.title)}</h2>
+        <div class="text-muted mb-16">${escapeHtml(job.company_name || "")} • ${escapeHtml(job.location || "Remote")} • ${escapeHtml(job.job_type)}</div>
+        <p><strong>Description</strong></p>
+        <p class="text-muted">${escapeHtml(job.description)}</p>
+        ${job.requirements ? `<p><strong>Requirements</strong></p><p class="text-muted">${escapeHtml(job.requirements)}</p>` : ""}
+        <p><strong>Salary:</strong> ${job.salary_min || job.salary_max ? `₹${job.salary_min} - ₹${job.salary_max}` : "Not disclosed"}</p>
+        <div id="apply-error" class="error-banner"></div>
+        ${
+          applied
+            ? `<button class="btn btn-outline btn-block" disabled>Already Applied</button>`
+            : `
+              <div class="form-group">
+                <label>Cover Letter (optional)</label>
+                <textarea id="cover-letter" placeholder="Why are you a great fit for this role?"></textarea>
+              </div>
+              <button class="btn btn-primary btn-block" id="apply-btn" onclick="submitApplication(${job.id})">Submit Application</button>
+            `
+        }
+      `;
+    } catch (err) {
+      body.innerHTML = `<p class="error-banner" style="display:block;">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  async function submitApplication(jobId) {
+    const btn = document.getElementById("apply-btn");
+    btn.disabled = true;
+    btn.textContent = "Submitting...";
+    try {
+      await api.applyToJob(jobId, { cover_letter: document.getElementById("cover-letter").value.trim() });
+      closeModal();
+      await loadJobs();
+    } catch (err) {
+      showBanner("apply-error", err.message);
+      btn.disabled = false;
+      btn.textContent = "Submit Application";
+    }
+  }
+
+  function closeModal() {
+    document.getElementById("job-modal").classList.remove("open");
+  }
+
+  loadJobs();
+</script>
+</body>
+</html>

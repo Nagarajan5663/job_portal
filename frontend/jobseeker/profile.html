@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Profile — JobPortal</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="navbar"></div>
+
+<section class="page">
+  <div class="container" style="max-width:700px;">
+    <div class="page-header">
+      <h1>My Profile</h1>
+      <p>Keep your profile up to date to help recruiters find you.</p>
+    </div>
+
+    <div class="card">
+      <div id="error-banner" class="error-banner"></div>
+      <div id="success-banner" class="success-banner"></div>
+
+      <form id="profile-form">
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input id="phone" placeholder="+91 98765 43210" />
+          </div>
+          <div class="form-group">
+            <label for="location">Location</label>
+            <input id="location" placeholder="City, Country" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="skills">Skills (comma-separated)</label>
+          <input id="skills" placeholder="Python, FastAPI, SQL, JavaScript" />
+        </div>
+        <div class="form-group">
+          <label for="experience">Experience</label>
+          <textarea id="experience" placeholder="Summarize your work experience"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="education">Education</label>
+          <textarea id="education" placeholder="Your educational background"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="resume_url">Resume Link (URL)</label>
+          <input id="resume_url" placeholder="https://... (link to your uploaded resume)" />
+        </div>
+        <button type="submit" class="btn btn-primary" id="save-btn">Save Profile</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  Auth.requireRole("jobseeker");
+  renderNavbar("profile");
+
+  async function loadProfile() {
+    try {
+      const p = await api.getMyProfile();
+      document.getElementById("phone").value = p.phone || "";
+      document.getElementById("location").value = p.location || "";
+      document.getElementById("skills").value = p.skills || "";
+      document.getElementById("experience").value = p.experience || "";
+      document.getElementById("education").value = p.education || "";
+      document.getElementById("resume_url").value = p.resume_url || "";
+    } catch (err) {
+      showBanner("error-banner", err.message);
+    }
+  }
+
+  document.getElementById("profile-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    showBanner("error-banner", "");
+    showBanner("success-banner", "");
+    const btn = document.getElementById("save-btn");
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+    try {
+      await api.updateMyProfile({
+        phone: document.getElementById("phone").value.trim(),
+        location: document.getElementById("location").value.trim(),
+        skills: document.getElementById("skills").value.trim(),
+        experience: document.getElementById("experience").value.trim(),
+        education: document.getElementById("education").value.trim(),
+        resume_url: document.getElementById("resume_url").value.trim(),
+      });
+      showBanner("success-banner", "Profile saved successfully.", "success");
+    } catch (err) {
+      showBanner("error-banner", err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Save Profile";
+    }
+  });
+
+  loadProfile();
+</script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Jobs — Recruiter — JobPortal</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="navbar"></div>
+
+<section class="page">
+  <div class="container">
+    <div class="page-header flex-between">
+      <div>
+        <h1>My Job Postings</h1>
+        <p>Manage the jobs you've posted and review applicants.</p>
+      </div>
+      <a href="/recruiter/post_job.html" class="btn btn-primary">+ Post a Job</a>
+    </div>
+
+    <div id="error-banner" class="error-banner"></div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Title</th><th>Location</th><th>Type</th><th>Status</th><th>Applicants</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="jobs-table-body"></tbody>
+      </table>
+      <div id="empty-state" class="empty-state hidden">You haven't posted any jobs yet. <a href="/recruiter/post_job.html">Post your first job</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- Applicants Modal -->
+<div class="modal-overlay" id="applicants-modal">
+  <div class="modal" style="max-width:680px;">
+    <button class="modal-close" onclick="closeApplicantsModal()">&times;</button>
+    <div id="applicants-body"></div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  Auth.requireRole("recruiter");
+  renderNavbar("dashboard");
+
+  async function loadJobs() {
+    try {
+      const jobs = await api.myPostedJobs();
+      showBanner("error-banner", "");
+      const tbody = document.getElementById("jobs-table-body");
+      document.getElementById("empty-state").classList.toggle("hidden", jobs.length !== 0);
+      tbody.innerHTML = jobs
+        .map(
+          (j) => `
+        <tr>
+          <td>${escapeHtml(j.title)}</td>
+          <td>${escapeHtml(j.location || "-")}</td>
+          <td>${escapeHtml(j.job_type)}</td>
+          <td><span class="status status-${j.status}">${j.status}</span></td>
+          <td><button class="btn btn-sm btn-outline" onclick="viewApplicants(${j.id}, '${escapeHtml(j.title).replace(/'/g, "\\'")}')">View</button></td>
+          <td>
+            <a href="/recruiter/post_job.html?id=${j.id}" class="btn btn-sm btn-outline">Edit</a>
+            <button class="btn btn-sm btn-danger" onclick="deleteJob(${j.id})">Delete</button>
+          </td>
+        </tr>`
+        )
+        .join("");
+    } catch (err) {
+      showBanner("error-banner", err.message);
+    }
+  }
+
+  async function deleteJob(id) {
+    if (!confirm("Delete this job posting? This will also remove its applications.")) return;
+    try {
+      await api.deleteJob(id);
+      loadJobs();
+    } catch (err) {
+      showBanner("error-banner", err.message);
+    }
+  }
+
+  async function viewApplicants(jobId, title) {
+    const modal = document.getElementById("applicants-modal");
+    const body = document.getElementById("applicants-body");
+    body.innerHTML = "<p>Loading...</p>";
+    modal.classList.add("open");
+    try {
+      const applicants = await api.viewApplicants(jobId);
+      body.innerHTML = `<h2>Applicants — ${escapeHtml(title)}</h2>` +
+        (applicants.length === 0
+          ? '<p class="text-muted">No applicants yet.</p>'
+          : `<table>
+              <thead><tr><th>Name</th><th>Email</th><th>Applied</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody>
+                ${applicants
+                  .map(
+                    (a) => `
+                  <tr>
+                    <td>${escapeHtml(a.applicant_name)}</td>
+                    <td>${escapeHtml(a.applicant_email)}</td>
+                    <td>${formatDate(a.applied_at)}</td>
+                    <td><span class="status status-${a.status}">${a.status}</span></td>
+                    <td>
+                      ${
+                        a.status === "pending"
+                          ? `<button class="btn btn-sm btn-success" onclick="setStatus(${a.id}, 'accepted', ${jobId}, '${escapeHtml(title).replace(/'/g, "\\'")}')">Accept</button>
+                             <button class="btn btn-sm btn-danger" onclick="setStatus(${a.id}, 'rejected', ${jobId}, '${escapeHtml(title).replace(/'/g, "\\'")}')">Reject</button>`
+                          : ""
+                      }
+                    </td>
+                  </tr>`
+                  )
+                  .join("")}
+              </tbody>
+            </table>`);
+    } catch (err) {
+      body.innerHTML = `<p class="error-banner" style="display:block;">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  async function setStatus(appId, status, jobId, title) {
+    try {
+      await api.setApplicationStatus(appId, status);
+      viewApplicants(jobId, title);
+      loadJobs();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  function closeApplicantsModal() {
+    document.getElementById("applicants-modal").classList.remove("open");
+  }
+
+  loadJobs();
+</script>
+</body>
+</html>

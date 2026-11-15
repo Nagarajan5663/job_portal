@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Register — JobPortal</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="navbar"></div>
+
+<div class="auth-wrapper">
+  <div class="card auth-card">
+    <h2>Create your account</h2>
+    <p class="text-muted mb-16">Choose your role to get started.</p>
+
+    <div id="error-banner" class="error-banner"></div>
+    <div id="success-banner" class="success-banner"></div>
+
+    <div class="role-select" id="role-select">
+      <div class="role-option selected" data-role="jobseeker">Job Seeker</div>
+      <div class="role-option" data-role="recruiter">Recruiter</div>
+      <div class="role-option" data-role="admin">Admin</div>
+    </div>
+
+    <form id="register-form" novalidate>
+      <div class="form-group">
+        <label for="name">Full Name</label>
+        <input type="text" id="name" required minlength="2" />
+        <div class="field-error" id="err-name">Name must be at least 2 characters.</div>
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" required />
+        <div class="field-error" id="err-email">Enter a valid email address.</div>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" required minlength="6" />
+        <div class="field-error" id="err-password">Min 6 characters, with at least one letter and one digit.</div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="submit-btn">Create Account</button>
+    </form>
+
+    <div class="auth-switch">Already have an account? <a href="/login.html">Login here</a></div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  renderNavbar();
+  let selectedRole = "jobseeker";
+
+  document.querySelectorAll(".role-option").forEach((el) => {
+    el.addEventListener("click", () => {
+      document.querySelectorAll(".role-option").forEach((o) => o.classList.remove("selected"));
+      el.classList.add("selected");
+      selectedRole = el.dataset.role;
+    });
+  });
+
+  function validate() {
+    let valid = true;
+    const name = document.getElementById("name").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    const nameOk = name.length >= 2;
+    document.getElementById("err-name").style.display = nameOk ? "none" : "block";
+    valid = valid && nameOk;
+
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    document.getElementById("err-email").style.display = emailOk ? "none" : "block";
+    valid = valid && emailOk;
+
+    const passOk = password.length >= 6 && /[A-Za-z]/.test(password) && /\d/.test(password);
+    document.getElementById("err-password").style.display = passOk ? "none" : "block";
+    valid = valid && passOk;
+
+    return valid;
+  }
+
+  document.getElementById("register-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    showBanner("error-banner", "");
+    showBanner("success-banner", "");
+    if (!validate()) return;
+
+    const btn = document.getElementById("submit-btn");
+    btn.disabled = true;
+    btn.textContent = "Creating account...";
+
+    try {
+      await api.register({
+        name: document.getElementById("name").value.trim(),
+        email: document.getElementById("email").value.trim(),
+        password: document.getElementById("password").value,
+        role: selectedRole,
+      });
+      showBanner("success-banner", "Account created! Redirecting to login...", "success");
+      setTimeout(() => (window.location.href = "/login.html"), 1200);
+    } catch (err) {
+      showBanner("error-banner", err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Create Account";
+    }
+  });
+</script>
+</body>
+</html>

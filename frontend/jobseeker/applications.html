@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Applications — JobPortal</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="navbar"></div>
+
+<section class="page">
+  <div class="container">
+    <div class="page-header">
+      <h1>My Applications</h1>
+      <p>Track the status of every job you've applied to.</p>
+    </div>
+
+    <div id="error-banner" class="error-banner"></div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Job Title</th><th>Applied On</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody id="apps-table-body"></tbody>
+      </table>
+      <div id="empty-state" class="empty-state hidden">You haven't applied to any jobs yet. <a href="/jobseeker/jobs.html">Browse jobs</a></div>
+    </div>
+  </div>
+</section>
+
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  Auth.requireRole("jobseeker");
+  renderNavbar("applications");
+
+  async function loadApplications() {
+    try {
+      const apps = await api.myApplications();
+      const tbody = document.getElementById("apps-table-body");
+      document.getElementById("empty-state").classList.toggle("hidden", apps.length !== 0);
+      tbody.innerHTML = apps
+        .map(
+          (a) => `
+        <tr>
+          <td>${escapeHtml(a.job_title || "Job #" + a.job_id)}</td>
+          <td>${formatDate(a.applied_at)}</td>
+          <td><span class="status status-${a.status}">${a.status}</span></td>
+          <td>${
+            a.status === "pending"
+              ? `<button class="btn btn-sm btn-outline" onclick="withdraw(${a.id})">Withdraw</button>`
+              : ""
+          }</td>
+        </tr>`
+        )
+        .join("");
+    } catch (err) {
+      showBanner("error-banner", err.message);
+    }
+  }
+
+  async function withdraw(id) {
+    if (!confirm("Withdraw this application?")) return;
+    try {
+      await api.withdrawApplication(id);
+      loadApplications();
+    } catch (err) {
+      showBanner("error-banner", err.message);
+    }
+  }
+
+  loadApplications();
+</script>
+</body>
+</html>
